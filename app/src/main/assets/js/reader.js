@@ -146,8 +146,9 @@ class EpubReader {
 
   registerThemes() {
     const commonStyles = {
-      "line-height": "1.75 !important",
-      padding: "36px 20px 40px 20px !important",
+      "line-height": "1.65 !important",
+      padding: "0 18px !important",
+      margin: "0 !important",
       "box-sizing": "border-box !important"
     };
 
@@ -155,6 +156,12 @@ class EpubReader {
       "p, div, span, a, li, h1, h2, h3, h4, h5, h6": {
         color: "inherit !important",
         "background-color": "transparent !important"
+      },
+      "p": {
+        "margin-top": "0 !important",
+        "margin-bottom": "0.75em !important",
+        "orphans": "2",
+        "widows": "2"
       }
     };
 

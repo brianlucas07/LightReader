@@ -116,10 +116,10 @@
 /* ================= ÁREA DO EPUB E TRANSIÇÃO DE PÁGINA ================= */
 .viewer-wrapper {
   position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  top: max(env(safe-area-inset-top, 0px), 36px);
+  bottom: max(env(safe-area-inset-bottom, 0px), 36px);
+  left: max(env(safe-area-inset-left, 0px), 12px);
+  right: max(env(safe-area-inset-right, 0px), 12px);
   overflow: hidden;
   background-color: inherit;
   box-sizing: border-box;

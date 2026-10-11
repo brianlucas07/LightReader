@@ -175,13 +175,24 @@ class MainActivity : ComponentActivity() {
 
         setContentView(rootLayout)
 
-        ViewCompat.setOnApplyWindowInsetsListener(rootLayout) { view, windowInsets ->
-            val insets = windowInsets.getInsets(
+        rootLayout.clipToPadding = true
+
+        val applyInsets = { insets: WindowInsetsCompat ->
+            val systemInsets = insets.getInsets(
                 WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
             )
-            view.setPadding(insets.left, insets.top, insets.right, insets.bottom)
+            rootLayout.setPadding(systemInsets.left, systemInsets.top, systemInsets.right, systemInsets.bottom)
+        }
+
+        ViewCompat.setOnApplyWindowInsetsListener(window.decorView) { _, windowInsets ->
+            applyInsets(windowInsets)
             windowInsets
         }
+        ViewCompat.setOnApplyWindowInsetsListener(rootLayout) { _, windowInsets ->
+            applyInsets(windowInsets)
+            windowInsets
+        }
+        ViewCompat.requestApplyInsets(window.decorView)
         ViewCompat.requestApplyInsets(rootLayout)
 
         // Gerencia navegação do botão voltar no aplicativo

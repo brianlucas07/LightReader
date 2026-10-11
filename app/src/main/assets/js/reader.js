@@ -196,7 +196,7 @@ class EpubReader {
   registerThemes() {
     const commonStyles = {
       "line-height": "1.65 !important",
-      padding: "20px 20px 28px 20px !important",
+      padding: "10px 16px 16px 16px !important",
       margin: "0 !important",
       "box-sizing": "border-box !important"
     };
@@ -212,6 +212,12 @@ class EpubReader {
         "orphans": "1 !important",
         "widows": "1 !important"
       },
+      "h1, h2, h3, h4, h5, h6": {
+        "margin-top": "0.4em !important",
+        "margin-bottom": "0.4em !important",
+        "break-inside": "avoid !important",
+        "page-break-inside": "avoid !important"
+      },
       "*, body, div, section, article, p, blockquote": {
         "break-inside": "auto !important",
         "page-break-inside": "auto !important",
@@ -220,7 +226,7 @@ class EpubReader {
       },
       "img, image, svg, video, audio": {
         "max-width": "100% !important",
-        "max-height": "75vh !important",
+        "max-height": "70vh !important",
         "height": "auto !important",
         "object-fit": "contain !important",
         "break-inside": "avoid !important",

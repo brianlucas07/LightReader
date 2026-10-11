@@ -225,12 +225,12 @@ class EpubReader {
         "box-sizing": "border-box !important"
       },
       "img, image, svg, video, audio": {
-        max-width: "100% !important",
-        max-height: "85% !important",
-        height: "auto !important",
-        object-fit: "contain !important",
-        break-inside: "avoid !important",
-        page-break-inside: "avoid !important",
+        "max-width": "100% !important",
+        "max-height": "85% !important",
+        "height": "auto !important",
+        "object-fit": "contain !important",
+        "break-inside": "avoid !important",
+        "page-break-inside": "avoid !important",
         "-webkit-column-break-inside": "avoid !important"
       },
       "table, pre": {

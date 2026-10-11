@@ -116,8 +116,8 @@
 /* ================= ÁREA DO EPUB E TRANSIÇÃO DE PÁGINA ================= */
 .viewer-wrapper {
   position: absolute;
-  top: 14px;
-  bottom: 18px;
+  top: 0;
+  bottom: 0;
   left: 0;
   right: 0;
   overflow: hidden;
@@ -137,11 +137,9 @@
   box-sizing: border-box;
 }
 
-/* O iframe do epub.js ocupa exatamente o espaço interno seguro */
+/* O iframe do epub.js ocupa exatamente o espaço interno seguro calculado pelo motor */
 .epub-viewer iframe {
   border: none;
-  width: 100% !important;
-  height: 100% !important;
   display: block;
 }
 

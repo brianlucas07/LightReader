@@ -75,6 +75,47 @@ class EpubReader {
     this.applyTheme(this.currentTheme);
     this.applyFontSize(this.fontSizePercent);
 
+    // Injeta regras defensivas em todas as seções para impedir overflow vertical
+    this.rendition.hooks.content.register((contents) => {
+      const doc = contents.document;
+      if (!doc) return;
+      const style = doc.createElement("style");
+      style.textContent = `
+        html {
+          height: 100% !important;
+          overflow: hidden !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          box-sizing: border-box !important;
+        }
+        body {
+          margin: 0 !important;
+          box-sizing: border-box !important;
+        }
+        *, body, div, section, article, p, blockquote {
+          break-inside: auto !important;
+          page-break-inside: auto !important;
+          -webkit-column-break-inside: auto !important;
+          box-sizing: border-box !important;
+        }
+        img, image, svg, video, audio {
+          max-width: 100% !important;
+          max-height: 75vh !important;
+          height: auto !important;
+          object-fit: contain !important;
+          break-inside: avoid !important;
+          page-break-inside: avoid !important;
+          -webkit-column-break-inside: auto !important;
+        }
+        table, pre {
+          max-width: 100% !important;
+          word-break: break-word !important;
+          overflow-wrap: break-word !important;
+        }
+      `;
+      doc.head?.appendChild(style);
+    });
+
     // Carrega sumário (TOC)
     this.book.loaded.navigation.then((nav) => {
       this.tocItems = nav.toc || [];
@@ -139,6 +180,14 @@ class EpubReader {
       await this.rendition.display();
     }
 
+    // Força recalibração exata das dimensões das colunas
+    requestAnimationFrame(() => {
+      this.rendition?.resize();
+    });
+    setTimeout(() => {
+      this.rendition?.resize();
+    }, 150);
+
     // Configura título do livro na barra superior
     const titleEl = document.getElementById("readerBookTitle");
     if (titleEl) titleEl.textContent = bookRecord.title;
@@ -147,7 +196,7 @@ class EpubReader {
   registerThemes() {
     const commonStyles = {
       "line-height": "1.65 !important",
-      padding: "0 18px !important",
+      padding: "20px 20px 28px 20px !important",
       margin: "0 !important",
       "box-sizing": "border-box !important"
     };
@@ -160,8 +209,28 @@ class EpubReader {
       "p": {
         "margin-top": "0 !important",
         "margin-bottom": "0.75em !important",
-        "orphans": "2",
-        "widows": "2"
+        "orphans": "1 !important",
+        "widows": "1 !important"
+      },
+      "*, body, div, section, article, p, blockquote": {
+        "break-inside": "auto !important",
+        "page-break-inside": "auto !important",
+        "-webkit-column-break-inside": "auto !important",
+        "box-sizing": "border-box !important"
+      },
+      "img, image, svg, video, audio": {
+        "max-width": "100% !important",
+        "max-height": "75vh !important",
+        "height": "auto !important",
+        "object-fit": "contain !important",
+        "break-inside": "avoid !important",
+        "page-break-inside": "avoid !important",
+        "-webkit-column-break-inside": "avoid !important"
+      },
+      "table, pre": {
+        "max-width": "100% !important",
+        "word-break": "break-word !important",
+        "overflow-wrap": "break-word !important"
       }
     };
 

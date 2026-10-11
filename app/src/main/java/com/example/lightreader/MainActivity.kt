@@ -6,6 +6,8 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
+import android.view.ViewGroup
+import android.widget.FrameLayout
 import android.webkit.ConsoleMessage
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
@@ -121,11 +123,25 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        setContentView(webView)
+        // Cria container FrameLayout para que os insets do sistema (status bar, notch e barra de navegação)
+        // sejam efetivamente aplicados no layout, evitando corte de conteúdo nas bordas verticais
+        val rootLayout = FrameLayout(this).apply {
+            layoutParams = ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+            addView(
+                webView,
+                FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.MATCH_PARENT
+                )
+            )
+        }
 
-        // Aplica o padding dos insets do sistema (status bar, notch e navigation bar)
-        // para garantir que o conteúdo nunca fique oculto ou cortado pelas bordas da tela
-        ViewCompat.setOnApplyWindowInsetsListener(webView) { view, windowInsets ->
+        setContentView(rootLayout)
+
+        ViewCompat.setOnApplyWindowInsetsListener(rootLayout) { view, windowInsets ->
             val insets = windowInsets.getInsets(
                 WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
             )

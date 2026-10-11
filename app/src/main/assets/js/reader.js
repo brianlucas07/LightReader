@@ -166,7 +166,7 @@ class EpubReader {
   registerThemes() {
     const commonStyles = {
       "line-height": "1.75 !important",
-      padding: "44px 20px 52px 20px !important",
+      padding: "20px 20px 24px 20px !important",
       "box-sizing": "border-box !important"
     };
 

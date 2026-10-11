@@ -11,6 +11,7 @@ class EpubReader {
     this.fontSizePercent = parseInt(localStorage.getItem("reader_font_size") || "100", 10);
     this.tocItems = [];
     this.isControlsVisible = true;
+    this.isAnimating = false;
   }
 
   async openBook(bookRecord) {
@@ -80,24 +81,56 @@ class EpubReader {
       }
     });
 
-    // Intercepta toques dentro do iframe para navegar e alternar controles
+    // Intercepta gestos de swipe (arrastar de um lado para o outro) e toque simples (tap)
     this.rendition.on("rendered", (section, view) => {
-      view.document.body.addEventListener("click", (e) => {
-        const width = view.window.innerWidth;
-        const x = e.clientX;
+      const doc = view.document;
+      if (!doc) return;
 
-        // Borda esquerda (25%): Volta página
-        if (x < width * 0.25) {
-          this.prevPage();
+      let startX = 0;
+      let startY = 0;
+      let startTime = 0;
+      let isTracking = false;
+
+      // Eventos de Toque (Mobile / Android)
+      doc.addEventListener("touchstart", (e) => {
+        if (e.touches.length === 1) {
+          startX = e.touches[0].clientX;
+          startY = e.touches[0].clientY;
+          startTime = Date.now();
+          isTracking = true;
         }
-        // Borda direita (25%): Avança página
-        else if (x > width * 0.75) {
-          this.nextPage();
-        }
-        // Centro (50%): Alterna visibilidade dos menus
-        else {
-          this.toggleControls();
-        }
+      }, { passive: true });
+
+      doc.addEventListener("touchend", (e) => {
+        if (!isTracking) return;
+        isTracking = false;
+
+        const endX = e.changedTouches[0].clientX;
+        const endY = e.changedTouches[0].clientY;
+        const deltaX = endX - startX;
+        const deltaY = endY - startY;
+        const deltaTime = Date.now() - startTime;
+
+        this.handleGestureEnd(deltaX, deltaY, deltaTime);
+      });
+
+      // Suporte a Mouse Drag (Desktop / Emuladores)
+      doc.addEventListener("mousedown", (e) => {
+        startX = e.clientX;
+        startY = e.clientY;
+        startTime = Date.now();
+        isTracking = true;
+      });
+
+      doc.addEventListener("mouseup", (e) => {
+        if (!isTracking) return;
+        isTracking = false;
+
+        const deltaX = e.clientX - startX;
+        const deltaY = e.clientY - startY;
+        const deltaTime = Date.now() - startTime;
+
+        this.handleGestureEnd(deltaX, deltaY, deltaTime);
       });
     });
 
@@ -172,12 +205,85 @@ class EpubReader {
     this.applyFontSize(this.fontSizePercent - 10);
   }
 
-  nextPage() {
-    if (this.rendition) this.rendition.next();
+  handleGestureEnd(deltaX, deltaY, deltaTime) {
+    const absX = Math.abs(deltaX);
+    const absY = Math.abs(deltaY);
+
+    // Gesto de Swipe horizontal (arrastar na tela)
+    // - Mínimo de 35px de deslocamento horizontal
+    // - Predominantemente horizontal (absX > absY * 1.2)
+    // - Tempo menor que 700ms
+    if (absX > 35 && absX > absY * 1.2 && deltaTime < 700) {
+      if (deltaX < 0) {
+        // Arrastou para a esquerda -> Avança para próxima página
+        this.nextPage();
+      } else {
+        // Arrastou para a direita -> Volta para página anterior
+        this.prevPage();
+      }
+    }
+    // Toque simples (tap) na tela: alterna visibilidade dos menus
+    else if (absX < 12 && absY < 12 && deltaTime < 350) {
+      this.toggleControls();
+    }
   }
 
-  prevPage() {
-    if (this.rendition) this.rendition.prev();
+  async nextPage() {
+    if (!this.rendition || this.isAnimating) return;
+    this.isAnimating = true;
+
+    const viewer = document.getElementById("viewer");
+    if (viewer) {
+      viewer.classList.remove("page-anim-next-enter", "page-anim-prev-enter", "page-anim-prev-exit");
+      viewer.classList.add("page-anim-next-exit");
+      await new Promise((r) => setTimeout(r, 160));
+    }
+
+    try {
+      await this.rendition.next();
+    } catch (e) {
+      console.warn("Erro ao avançar página:", e);
+    }
+
+    if (viewer) {
+      viewer.classList.remove("page-anim-next-exit");
+      viewer.classList.add("page-anim-next-enter");
+      setTimeout(() => {
+        viewer.classList.remove("page-anim-next-enter");
+        this.isAnimating = false;
+      }, 240);
+    } else {
+      this.isAnimating = false;
+    }
+  }
+
+  async prevPage() {
+    if (!this.rendition || this.isAnimating) return;
+    this.isAnimating = true;
+
+    const viewer = document.getElementById("viewer");
+    if (viewer) {
+      viewer.classList.remove("page-anim-next-enter", "page-anim-prev-enter", "page-anim-next-exit");
+      viewer.classList.add("page-anim-prev-exit");
+      await new Promise((r) => setTimeout(r, 160));
+    }
+
+    try {
+      await this.rendition.prev();
+    } catch (e) {
+      console.warn("Erro ao voltar página:", e);
+    }
+
+    if (viewer) {
+      viewer.classList.remove("page-anim-prev-exit");
+      viewer.classList.add("page-anim-prev-enter");
+      setTimeout(() => {
+        viewer.classList.remove("page-anim-prev-enter");
+        this.isAnimating = false;
+      }, 240);
+    } else {
+      this.isAnimating = false;
+    }
   }
 
   goToLocation(target) {
@@ -250,6 +356,16 @@ class EpubReader {
   }
 
   destroy() {
+    this.isAnimating = false;
+    const viewer = document.getElementById("viewer");
+    if (viewer) {
+      viewer.classList.remove(
+        "page-anim-next-enter",
+        "page-anim-next-exit",
+        "page-anim-prev-enter",
+        "page-anim-prev-exit"
+      );
+    }
     if (this.rendition) {
       try {
         this.rendition.destroy();

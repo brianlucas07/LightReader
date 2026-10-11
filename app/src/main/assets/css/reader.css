@@ -86,13 +86,17 @@
   background: var(--surface-alt);
 }
 
-/* ================= ÁREA DO EPUB ================= */
+/* ================= ÁREA DO EPUB E TRANSIÇÃO DE PÁGINA ================= */
 .epub-viewer {
   flex: 1;
   width: 100%;
   height: 100%;
   position: relative;
   z-index: 10;
+  perspective: 1200px;
+  transform-style: preserve-3d;
+  overflow: hidden;
+  will-change: transform, opacity;
 }
 
 /* O iframe do epub.js precisa ocupar 100% */
@@ -100,6 +104,75 @@
   border: none;
   width: 100% !important;
   height: 100% !important;
+}
+
+/* Animações fluidas com sensação de folhear página */
+.epub-viewer.page-anim-next-exit {
+  animation: pageTurnNextExit 0.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.epub-viewer.page-anim-next-enter {
+  animation: pageTurnNextEnter 0.24s cubic-bezier(0.1, 0.9, 0.2, 1) forwards;
+}
+
+.epub-viewer.page-anim-prev-exit {
+  animation: pageTurnPrevExit 0.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.epub-viewer.page-anim-prev-enter {
+  animation: pageTurnPrevEnter 0.24s cubic-bezier(0.1, 0.9, 0.2, 1) forwards;
+}
+
+@keyframes pageTurnNextExit {
+  0% {
+    transform: translate3d(0, 0, 0) rotateY(0deg);
+    opacity: 1;
+    filter: brightness(1);
+  }
+  100% {
+    transform: translate3d(-35px, 0, -20px) rotateY(-6deg);
+    opacity: 0.1;
+    filter: brightness(0.92);
+  }
+}
+
+@keyframes pageTurnNextEnter {
+  0% {
+    transform: translate3d(40px, 0, -20px) rotateY(6deg);
+    opacity: 0.15;
+    filter: brightness(0.94);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) rotateY(0deg);
+    opacity: 1;
+    filter: brightness(1);
+  }
+}
+
+@keyframes pageTurnPrevExit {
+  0% {
+    transform: translate3d(0, 0, 0) rotateY(0deg);
+    opacity: 1;
+    filter: brightness(1);
+  }
+  100% {
+    transform: translate3d(35px, 0, -20px) rotateY(6deg);
+    opacity: 0.1;
+    filter: brightness(0.92);
+  }
+}
+
+@keyframes pageTurnPrevEnter {
+  0% {
+    transform: translate3d(-40px, 0, -20px) rotateY(-6deg);
+    opacity: 0.15;
+    filter: brightness(0.94);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) rotateY(0deg);
+    opacity: 1;
+    filter: brightness(1);
+  }
 }
 
 /* ================= BARRA INFERIOR RETRÁTIL ================= */

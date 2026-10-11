@@ -2,14 +2,17 @@ package com.example.lightreader
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
+import android.util.TypedValue
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.webkit.ConsoleMessage
+import android.webkit.JsResult
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
@@ -20,6 +23,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.addCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.net.toUri
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.webkit.WebViewAssetLoader
@@ -34,20 +38,8 @@ class MainActivity : ComponentActivity() {
     private val filePickerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            val intentData = result.data
-            val results = when {
-                intentData?.data != null -> arrayOf(intentData.data!!)
-                intentData?.clipData != null -> {
-                    val clipData = intentData.clipData!!
-                    Array(clipData.itemCount) { i -> clipData.getItemAt(i).uri }
-                }
-                else -> null
-            }
-            filePathCallback?.onReceiveValue(results)
-        } else {
-            filePathCallback?.onReceiveValue(null)
-        }
+        val results = WebChromeClient.FileChooserParams.parseResult(result.resultCode, result.data)
+        filePathCallback?.onReceiveValue(results)
         filePathCallback = null
     }
 
@@ -84,7 +76,7 @@ class MainActivity : ComponentActivity() {
                     view: WebView,
                     url: String
                 ): WebResourceResponse? {
-                    return assetLoader.shouldInterceptRequest(Uri.parse(url))
+                    return assetLoader.shouldInterceptRequest(url.toUri())
                 }
             }
 
@@ -96,6 +88,37 @@ class MainActivity : ComponentActivity() {
                             "[${it.messageLevel()}] ${it.message()} -- line ${it.lineNumber()} of ${it.sourceId()}"
                         )
                     }
+                    return true
+                }
+
+                override fun onJsAlert(
+                    view: WebView?,
+                    url: String?,
+                    message: String?,
+                    result: JsResult?
+                ): Boolean {
+                    AlertDialog.Builder(this@MainActivity)
+                        .setTitle(R.string.app_name)
+                        .setMessage(message)
+                        .setPositiveButton(android.R.string.ok) { _, _ -> result?.confirm() }
+                        .setOnCancelListener { result?.cancel() }
+                        .show()
+                    return true
+                }
+
+                override fun onJsConfirm(
+                    view: WebView?,
+                    url: String?,
+                    message: String?,
+                    result: JsResult?
+                ): Boolean {
+                    AlertDialog.Builder(this@MainActivity)
+                        .setTitle(R.string.app_name)
+                        .setMessage(message)
+                        .setPositiveButton(android.R.string.ok) { _, _ -> result?.confirm() }
+                        .setNegativeButton(android.R.string.cancel) { _, _ -> result?.cancel() }
+                        .setOnCancelListener { result?.cancel() }
+                        .show()
                     return true
                 }
 
@@ -126,14 +149,21 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // Cria container FrameLayout para que os insets do sistema (status bar, notch e barra de navegação)
-        // sejam efetivamente aplicados no layout, evitando corte de conteúdo nas bordas verticais
+        // Cria container FrameLayout com cor do tema do sistema
+        val typedValue = TypedValue()
+        theme.resolveAttribute(android.R.attr.windowBackground, typedValue, true)
+        val backgroundColor = if (typedValue.type in TypedValue.TYPE_FIRST_COLOR_INT..TypedValue.TYPE_LAST_COLOR_INT) {
+            typedValue.data
+        } else {
+            Color.TRANSPARENT
+        }
+
         val rootLayout = FrameLayout(this).apply {
             layoutParams = ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
-            setBackgroundColor(Color.WHITE)
+            setBackgroundColor(backgroundColor)
             addView(
                 webView,
                 FrameLayout.LayoutParams(
@@ -154,12 +184,16 @@ class MainActivity : ComponentActivity() {
         }
         ViewCompat.requestApplyInsets(rootLayout)
 
-        // Gerencia navegação do botão voltar no histórico do WebView (volta da leitura para a estante)
+        // Gerencia navegação do botão voltar no aplicativo
         onBackPressedDispatcher.addCallback(this) {
-            if (webView.canGoBack()) {
-                webView.goBack()
-            } else {
-                finish()
+            webView.evaluateJavascript("window.app ? window.app.handleBack() : false") { handled ->
+                if (handled != "true") {
+                    if (webView.canGoBack()) {
+                        webView.goBack()
+                    } else {
+                        finish()
+                    }
+                }
             }
         }
 

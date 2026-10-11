@@ -10,12 +10,31 @@
   overflow: hidden;
 }
 
+#readerView[data-reader-theme="light"] {
+  background-color: #ffffff;
+  --surface-color: #ffffff;
+  --surface-alt: #f1f5f9;
+  --text-primary: #0f172a;
+  --text-secondary: #64748b;
+  --border-color: #e2e8f0;
+}
+
 #readerView[data-reader-theme="dark"] {
   background-color: #121316;
+  --surface-color: #1a1d26;
+  --surface-alt: #242936;
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --border-color: #282f3f;
 }
 
 #readerView[data-reader-theme="sepia"] {
   background-color: #fbf0d9;
+  --surface-color: #f4e5c8;
+  --surface-alt: #ebd8b5;
+  --text-primary: #5f4b32;
+  --text-secondary: #8c7355;
+  --border-color: #e2cca6;
 }
 
 /* ================= BARRA SUPERIOR RETRÁTIL ================= */
@@ -40,9 +59,10 @@
 }
 
 .reader-header.hidden {
+  display: flex !important;
   transform: translateY(-100%);
   opacity: 0;
-  pointer-events: none;
+  pointer-events: none !important;
 }
 
 .reader-titles {
@@ -214,9 +234,10 @@
 }
 
 .reader-footer.hidden {
+  display: flex !important;
   transform: translateY(100%);
   opacity: 0;
-  pointer-events: none;
+  pointer-events: none !important;
 }
 
 .progress-container {
@@ -239,6 +260,23 @@
   min-width: 40px;
   text-align: right;
   color: var(--text-secondary);
+}
+
+/* ================= FUNDO ESCURECIDO PARA GAVETAS/MODAIS ================= */
+.reader-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 115;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(2px);
+  opacity: 1;
+  transition: opacity 0.25s ease;
+}
+
+.reader-backdrop.hidden {
+  opacity: 0;
+  pointer-events: none;
+  display: none;
 }
 
 /* ================= GAVETA DE SUMÁRIO (TOC) ================= */
@@ -369,6 +407,13 @@
   background: #121316;
   color: #f3f4f6;
   border-color: #374151;
+}
+
+.theme-btn.active {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 2px;
+  font-weight: 700;
+  box-shadow: 0 0 0 1px var(--accent-color);
 }
 
 .font-controls {

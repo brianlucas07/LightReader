@@ -12,12 +12,30 @@ class EpubReader {
     this.tocItems = [];
     this.isControlsVisible = false;
     this.isAnimating = false;
+    this.resizeTimeout = null;
+    this.onWindowResize = () => this.handleResize();
+  }
+
+  handleResize() {
+    clearTimeout(this.resizeTimeout);
+    this.resizeTimeout = setTimeout(() => {
+      if (this.rendition) {
+        try {
+          this.rendition.resize();
+        } catch (e) {
+          console.warn("Erro ao redimensionar rendition:", e);
+        }
+      }
+    }, 150);
   }
 
   async openBook(bookRecord) {
     this.destroy(); // Limpa instâncias anteriores antes de configurar novo livro
     this.currentBookId = bookRecord.id;
     this.isControlsVisible = false;
+
+    // Escuta mudanças de orientação e redimensionamento da janela
+    window.addEventListener("resize", this.onWindowResize);
 
     // Garante barras ocultas e gavetas fechadas na abertura do livro
     const header = document.getElementById("readerHeader");
@@ -26,6 +44,7 @@ class EpubReader {
     footer?.classList.add("hidden");
     document.getElementById("tocDrawer")?.classList.remove("open");
     document.getElementById("settingsSheet")?.classList.remove("open");
+    document.getElementById("readerModalBackdrop")?.classList.add("hidden");
 
     const targetCfi =
       bookRecord.currentCfi ||
@@ -184,13 +203,21 @@ class EpubReader {
       "box-sizing": "border-box !important"
     };
 
+    const textElementsOverride = {
+      "p, div, span, a, li, h1, h2, h3, h4, h5, h6": {
+        color: "inherit !important",
+        "background-color": "transparent !important"
+      }
+    };
+
     this.rendition.themes.register("light", {
       body: {
         background: "#ffffff !important",
         color: "#1a1a1a !important",
         "font-family": "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important",
         ...commonStyles
-      }
+      },
+      ...textElementsOverride
     });
 
     this.rendition.themes.register("dark", {
@@ -199,7 +226,8 @@ class EpubReader {
         color: "#e5e7eb !important",
         "font-family": "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important",
         ...commonStyles
-      }
+      },
+      ...textElementsOverride
     });
 
     this.rendition.themes.register("sepia", {
@@ -208,7 +236,8 @@ class EpubReader {
         color: "#5f4b32 !important",
         "font-family": "Georgia, serif !important",
         ...commonStyles
-      }
+      },
+      ...textElementsOverride
     });
   }
 
@@ -219,6 +248,10 @@ class EpubReader {
     if (this.rendition) {
       this.rendition.themes.select(theme);
     }
+    // Destaca o botão selecionado nas preferências
+    document.querySelectorAll(".theme-btn").forEach((btn) => {
+      btn.classList.toggle("active", btn.getAttribute("data-theme") === theme);
+    });
   }
 
   applyFontSize(percent) {
@@ -244,9 +277,6 @@ class EpubReader {
     const absY = Math.abs(deltaY);
 
     // Gesto de Swipe horizontal (arrastar na tela para passar de página)
-    // - Mínimo de 35px de deslocamento horizontal
-    // - Predominantemente horizontal (absX > absY * 1.2)
-    // - Tempo menor que 700ms
     if (absX > 35 && absX > absY * 1.2 && deltaTime < 700) {
       if (deltaX < 0) {
         // Arrastou para a esquerda -> Avança para próxima página
@@ -256,11 +286,18 @@ class EpubReader {
         this.prevPage();
       }
     }
-    // Toque simples (tap) no meio da tela: exibe ou oculta as barras de navegação
-    else if (absX < 15 && absY < 15 && deltaTime < 400) {
-      // Verifica se o toque foi na região central (entre 18% e 82% da largura)
-      const isCenter = (!screenWidth || (tapX >= screenWidth * 0.18 && tapX <= screenWidth * 0.82));
-      if (isCenter) {
+    // Toque simples (tap) na tela
+    else if (absX < 20 && absY < 20 && deltaTime < 500) {
+      if (!screenWidth) {
+        this.toggleControls();
+      } else if (tapX < screenWidth * 0.18) {
+        // Toque na borda esquerda: volta página
+        this.prevPage();
+      } else if (tapX > screenWidth * 0.82) {
+        // Toque na borda direita: avança página
+        this.nextPage();
+      } else {
+        // Toque na região central: alterna controles
         this.toggleControls();
       }
     }
@@ -328,6 +365,16 @@ class EpubReader {
     if (this.rendition) this.rendition.display(target);
   }
 
+  seekToPercentage(percent) {
+    if (this.book?.locations && this.book.locations.total > 0 && this.rendition) {
+      const clamped = Math.max(0, Math.min(100, percent));
+      const cfi = this.book.locations.cfiFromPercentage(clamped / 100);
+      if (cfi) {
+        this.rendition.display(cfi);
+      }
+    }
+  }
+
   updateProgressUi(percent) {
     const clamped = Math.max(0, Math.min(100, percent || 0));
     const label = document.getElementById("readerProgressLabel");
@@ -348,12 +395,20 @@ class EpubReader {
       footer?.classList.add("hidden");
       document.getElementById("tocDrawer")?.classList.remove("open");
       document.getElementById("settingsSheet")?.classList.remove("open");
+      document.getElementById("readerModalBackdrop")?.classList.add("hidden");
     }
   }
 
   findChapter(items, href) {
+    const cleanHref = (href || "").split("#")[0];
     for (const item of items) {
-      if (item.href && href.includes(item.href)) return item;
+      const cleanItemHref = (item.href || "").split("#")[0];
+      if (
+        (cleanItemHref && cleanHref.endsWith(cleanItemHref)) ||
+        (cleanHref && cleanItemHref.endsWith(cleanHref))
+      ) {
+        return item;
+      }
       if (item.subitems && item.subitems.length > 0) {
         const found = this.findChapter(item.subitems, href);
         if (found) return found;
@@ -380,6 +435,7 @@ class EpubReader {
         li.onclick = () => {
           this.goToLocation(item.href);
           document.getElementById("tocDrawer")?.classList.remove("open");
+          document.getElementById("readerModalBackdrop")?.classList.add("hidden");
         };
         parentUl.appendChild(li);
         if (item.subitems && item.subitems.length > 0) {
@@ -395,6 +451,10 @@ class EpubReader {
 
   destroy() {
     this.isAnimating = false;
+    window.removeEventListener("resize", this.onWindowResize);
+    clearTimeout(this.resizeTimeout);
+    document.getElementById("readerModalBackdrop")?.classList.add("hidden");
+
     const viewer = document.getElementById("viewer");
     if (viewer) {
       viewer.classList.remove(

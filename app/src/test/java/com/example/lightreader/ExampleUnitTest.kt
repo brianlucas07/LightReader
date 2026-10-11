@@ -1,17 +1,19 @@
 package com.example.lightreader
 
 import org.junit.Test
-
 import org.junit.Assert.*
 
-/**
- * Example local unit test, which will execute on the development machine (host).
- *
- * See [testing documentation](http://d.android.com/tools/testing).
- */
 class ExampleUnitTest {
     @Test
     fun addition_isCorrect() {
         assertEquals(4, 2 + 2)
+    }
+
+    @Test
+    fun progressClamping_isAccurate() {
+        fun clampProgress(percent: Int): Int = percent.coerceIn(0, 100)
+        assertEquals(0, clampProgress(-5))
+        assertEquals(50, clampProgress(50))
+        assertEquals(100, clampProgress(120))
     }
 }

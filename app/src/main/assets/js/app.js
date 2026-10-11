@@ -46,26 +46,59 @@ class AppController {
       window.epubReader.increaseFontSize();
     });
 
-    // Gaveta de Sumário (TOC)
-    const tocDrawer = document.getElementById("tocDrawer");
-    document.getElementById("btnOpenToc")?.addEventListener("click", () => {
-      tocDrawer?.classList.toggle("open");
-    });
-    document.getElementById("btnCloseToc")?.addEventListener("click", () => {
-      tocDrawer?.classList.remove("open");
-    });
-
     // Folha de Configurações de Leitura
     const settingsSheet = document.getElementById("settingsSheet");
-    document.getElementById("btnOpenSettings")?.addEventListener("click", () => {
-      settingsSheet?.classList.toggle("open");
-    });
-    document.getElementById("btnCloseSettings")?.addEventListener("click", () => {
+    const tocDrawer = document.getElementById("tocDrawer");
+    const modalBackdrop = document.getElementById("readerModalBackdrop");
+
+    const closeAllModals = () => {
+      tocDrawer?.classList.remove("open");
       settingsSheet?.classList.remove("open");
+      modalBackdrop?.classList.add("hidden");
+    };
+
+    modalBackdrop?.addEventListener("click", closeAllModals);
+
+    // Gaveta de Sumário (TOC)
+    document.getElementById("btnOpenToc")?.addEventListener("click", () => {
+      const willOpen = !tocDrawer?.classList.contains("open");
+      closeAllModals();
+      if (willOpen) {
+        tocDrawer?.classList.add("open");
+        modalBackdrop?.classList.remove("hidden");
+      }
+    });
+    document.getElementById("btnCloseToc")?.addEventListener("click", closeAllModals);
+
+    // Folha de Configurações de Leitura
+    document.getElementById("btnOpenSettings")?.addEventListener("click", () => {
+      const willOpen = !settingsSheet?.classList.contains("open");
+      closeAllModals();
+      if (willOpen) {
+        settingsSheet?.classList.add("open");
+        modalBackdrop?.classList.remove("hidden");
+      }
+    });
+    document.getElementById("btnCloseSettings")?.addEventListener("click", closeAllModals);
+
+    // Barra de progresso / Scrubber interativo
+    const progressSlider = document.getElementById("readerProgressSlider");
+    progressSlider?.addEventListener("input", (e) => {
+      const val = parseFloat(e.target.value);
+      const label = document.getElementById("readerProgressLabel");
+      if (label) label.textContent = `${Math.round(val)}%`;
+    });
+    progressSlider?.addEventListener("change", (e) => {
+      const val = parseFloat(e.target.value);
+      window.epubReader.seekToPercentage(val);
     });
 
     // Suporte ao botão voltar do Android via history API
     window.addEventListener("popstate", (e) => {
+      if (this.handleBack()) {
+        // Se fechou um modal, não sai da tela de leitura
+        return;
+      }
       if (this.activeView === "reader") {
         this.closeReaderAndGoToLibrary(false);
       }
@@ -124,6 +157,20 @@ class AppController {
     }
   }
 
+  handleBack() {
+    const tocDrawer = document.getElementById("tocDrawer");
+    const settingsSheet = document.getElementById("settingsSheet");
+    const modalBackdrop = document.getElementById("readerModalBackdrop");
+
+    if (tocDrawer?.classList.contains("open") || settingsSheet?.classList.contains("open")) {
+      tocDrawer?.classList.remove("open");
+      settingsSheet?.classList.remove("open");
+      modalBackdrop?.classList.add("hidden");
+      return true; // back consumido pelo fechamento de modal
+    }
+    return false;
+  }
+
   closeReaderAndGoToLibrary(shouldGoBackHistory = true) {
     localStorage.removeItem("last_active_book_id");
     window.epubReader.destroy();
@@ -132,9 +179,10 @@ class AppController {
     this.readerView.classList.add("hidden");
     this.libraryView.classList.remove("hidden");
 
-    // Fecha gavetas se abertas
+    // Fecha gavetas e modais se abertos
     document.getElementById("tocDrawer")?.classList.remove("open");
     document.getElementById("settingsSheet")?.classList.remove("open");
+    document.getElementById("readerModalBackdrop")?.classList.add("hidden");
 
     // Recarrega a estante para exibir o progresso atualizado
     window.bookLibrary.loadBooks();

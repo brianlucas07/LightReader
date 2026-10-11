@@ -63,9 +63,23 @@ class BookLibrary {
 
       tempBook.destroy();
 
+      const extractString = (val, fallback = "") => {
+        if (!val) return fallback;
+        if (typeof val === "string") return val.trim() || fallback;
+        if (Array.isArray(val)) {
+          const joined = val.map((v) => (typeof v === "string" ? v : v?.name || "")).filter(Boolean).join(", ");
+          return joined.trim() || fallback;
+        }
+        if (typeof val === "object") return (val.name || val.title || "").trim() || fallback;
+        return String(val).trim() || fallback;
+      };
+
+      const title = extractString(metadata?.title, file.name.replace(/\.epub$/i, ""));
+      const author = extractString(metadata?.creator, "Autor desconhecido");
+
       const newBook = {
-        title: metadata.title?.trim() || file.name.replace(/\.epub$/i, ""),
-        author: metadata.creator?.trim() || "Autor desconhecido",
+        title: title,
+        author: author,
         coverDataUrl: coverDataUrl,
         fileBuffer: arrayBuffer,
         fileSize: file.size,

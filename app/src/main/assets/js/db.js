@@ -72,7 +72,9 @@ class BookDatabase {
         const books = (request.result || []).map((book) => {
           const cachedCfi = localStorage.getItem(`last_cfi_${book.id}`);
           if (cachedCfi) book.currentCfi = cachedCfi;
-          return book;
+          // Omite fileBuffer na listagem da estante para economizar memória RAM
+          const { fileBuffer, ...metadata } = book;
+          return metadata;
         }).sort(
           (a, b) => (b.lastReadAt || b.addedAt || 0) - (a.lastReadAt || a.addedAt || 0)
         );
@@ -124,6 +126,10 @@ class BookDatabase {
   }
 
   async deleteBook(id) {
+    localStorage.removeItem(`last_cfi_${id}`);
+    if (localStorage.getItem("last_active_book_id") === id) {
+      localStorage.removeItem("last_active_book_id");
+    }
     const store = await this.getStore("readwrite");
     return new Promise((resolve, reject) => {
       const request = store.delete(id);

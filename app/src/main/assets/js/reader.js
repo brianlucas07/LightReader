@@ -12,6 +12,8 @@ class EpubReader {
     this.tocItems = [];
     this.isControlsVisible = false;
     this.isAnimating = false;
+    this.lastToggleTime = 0;
+    this.lastTouchEndTime = 0;
     this.resizeTimeout = null;
     this.onWindowResize = () => this.handleResize();
   }
@@ -121,62 +123,8 @@ class EpubReader {
       }
     });
 
-    // Intercepta gestos de swipe (arrastar de um lado para o outro) e toque simples (tap)
-    this.rendition.on("rendered", (section, view) => {
-      const doc = view.document;
-      if (!doc) return;
-
-      let startX = 0;
-      let startY = 0;
-      let startTime = 0;
-      let isTracking = false;
-
-      // Eventos de Toque (Mobile / Android)
-      doc.addEventListener("touchstart", (e) => {
-        if (e.touches.length === 1) {
-          startX = e.touches[0].clientX;
-          startY = e.touches[0].clientY;
-          startTime = Date.now();
-          isTracking = true;
-        }
-      }, { passive: true });
-
-      doc.addEventListener("touchend", (e) => {
-        if (!isTracking) return;
-        isTracking = false;
-
-        const endX = e.changedTouches[0].clientX;
-        const endY = e.changedTouches[0].clientY;
-        const deltaX = endX - startX;
-        const deltaY = endY - startY;
-        const deltaTime = Date.now() - startTime;
-        const frameWidth = view.iframe ? view.iframe.offsetWidth : window.innerWidth;
-        const frameHeight = view.iframe ? view.iframe.offsetHeight : window.innerHeight;
-
-        this.handleGestureEnd(deltaX, deltaY, deltaTime, endX, endY, frameWidth, frameHeight);
-      });
-
-      // Suporte a Mouse Drag (Desktop / Emuladores)
-      doc.addEventListener("mousedown", (e) => {
-        startX = e.clientX;
-        startY = e.clientY;
-        startTime = Date.now();
-        isTracking = true;
-      });
-
-      doc.addEventListener("mouseup", (e) => {
-        if (!isTracking) return;
-        isTracking = false;
-
-        const deltaX = e.clientX - startX;
-        const deltaY = e.clientY - startY;
-        const deltaTime = Date.now() - startTime;
-        const frameWidth = view.iframe ? view.iframe.offsetWidth : window.innerWidth;
-        const frameHeight = view.iframe ? view.iframe.offsetHeight : window.innerHeight;
-
-        this.handleGestureEnd(deltaX, deltaY, deltaTime, e.clientX, e.clientY, frameWidth, frameHeight);
-      });
-    });
+    // Configura detecção robusta de gestos (toque central, virada de página e swipe)
+    this.setupGestureListeners();
 
     // Exibe a página (na última posição salva ou no início)
     if (this.currentCfi) {
@@ -272,6 +220,89 @@ class EpubReader {
     this.applyFontSize(this.fontSizePercent - 10);
   }
 
+  setupGestureListeners() {
+    let startX = 0;
+    let startY = 0;
+    let startTime = 0;
+    let isTracking = false;
+
+    const onStart = (clientX, clientY) => {
+      startX = clientX;
+      startY = clientY;
+      startTime = Date.now();
+      isTracking = true;
+    };
+
+    const onEnd = (clientX, clientY, isTouch = false) => {
+      if (!isTracking) return;
+      isTracking = false;
+
+      if (isTouch) {
+        this.lastTouchEndTime = Date.now();
+      } else if (Date.now() - this.lastTouchEndTime < 650) {
+        // Ignora evento mouseup sintético gerado por toque no Android WebView
+        return;
+      }
+
+      const deltaX = clientX - startX;
+      const deltaY = clientY - startY;
+      const deltaTime = Date.now() - startTime;
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+
+      this.handleGestureEnd(deltaX, deltaY, deltaTime, clientX, clientY, width, height);
+    };
+
+    const handleTouchStart = (e) => {
+      if (e.touches && e.touches.length === 1) {
+        onStart(e.touches[0].clientX, e.touches[0].clientY);
+      }
+    };
+
+    const handleTouchEnd = (e) => {
+      if (e.changedTouches && e.changedTouches.length > 0) {
+        onEnd(e.changedTouches[0].clientX, e.changedTouches[0].clientY, true);
+      }
+    };
+
+    const handleMouseDown = (e) => {
+      if (Date.now() - this.lastTouchEndTime < 650) return;
+      onStart(e.clientX, e.clientY);
+    };
+
+    const handleMouseUp = (e) => {
+      if (Date.now() - this.lastTouchEndTime < 650) return;
+      onEnd(e.clientX, e.clientY, false);
+    };
+
+    // 1. Escuta eventos direto no rendition do ePub.js
+    if (this.rendition) {
+      this.rendition.on("touchstart", handleTouchStart);
+      this.rendition.on("touchend", handleTouchEnd);
+      this.rendition.on("mousedown", handleMouseDown);
+      this.rendition.on("mouseup", handleMouseUp);
+
+      // 2. Escuta no documento de cada seção/iframe
+      this.rendition.on("rendered", (section, view) => {
+        const doc = view?.document || view?.iframe?.contentDocument;
+        if (!doc) return;
+        doc.addEventListener("touchstart", handleTouchStart, { passive: true });
+        doc.addEventListener("touchend", handleTouchEnd);
+        doc.addEventListener("mousedown", handleMouseDown);
+        doc.addEventListener("mouseup", handleMouseUp);
+      });
+    }
+
+    // 3. Escuta no container do visualizador caso o toque seja na borda/margem
+    const viewerEl = document.getElementById("viewer");
+    if (viewerEl) {
+      viewerEl.addEventListener("touchstart", handleTouchStart, { passive: true });
+      viewerEl.addEventListener("touchend", handleTouchEnd);
+      viewerEl.addEventListener("mousedown", handleMouseDown);
+      viewerEl.addEventListener("mouseup", handleMouseUp);
+    }
+  }
+
   handleGestureEnd(deltaX, deltaY, deltaTime, tapX, tapY, screenWidth, screenHeight) {
     const absX = Math.abs(deltaX);
     const absY = Math.abs(deltaY);
@@ -279,25 +310,22 @@ class EpubReader {
     // Gesto de Swipe horizontal (arrastar na tela para passar de página)
     if (absX > 35 && absX > absY * 1.2 && deltaTime < 700) {
       if (deltaX < 0) {
-        // Arrastou para a esquerda -> Avança para próxima página
         this.nextPage();
       } else {
-        // Arrastou para a direita -> Volta para página anterior
         this.prevPage();
       }
     }
     // Toque simples (tap) na tela
-    else if (absX < 20 && absY < 20 && deltaTime < 500) {
-      if (!screenWidth) {
-        this.toggleControls();
-      } else if (tapX < screenWidth * 0.18) {
+    else if (absX < 35 && absY < 35 && deltaTime < 800) {
+      const width = screenWidth || window.innerWidth;
+      if (tapX < width * 0.20) {
         // Toque na borda esquerda: volta página
         this.prevPage();
-      } else if (tapX > screenWidth * 0.82) {
+      } else if (tapX > width * 0.80) {
         // Toque na borda direita: avança página
         this.nextPage();
       } else {
-        // Toque na região central: alterna controles
+        // Toque no meio da tela: exibe ou oculta as barras
         this.toggleControls();
       }
     }
@@ -384,7 +412,15 @@ class EpubReader {
   }
 
   toggleControls() {
+    const now = Date.now();
+    if (this.lastToggleTime && now - this.lastToggleTime < 350) {
+      return; // Previne duplo disparo acidental por eventos concomitantes
+    }
+    this.lastToggleTime = now;
+
     this.isControlsVisible = !this.isControlsVisible;
+    console.log("[LightReader] toggleControls chamado. Novo estado:", this.isControlsVisible);
+
     const header = document.getElementById("readerHeader");
     const footer = document.getElementById("readerFooter");
     if (this.isControlsVisible) {

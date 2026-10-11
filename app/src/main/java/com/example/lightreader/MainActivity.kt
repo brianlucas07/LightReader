@@ -3,6 +3,7 @@ package com.example.lightreader
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Intent
+import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
@@ -17,6 +18,7 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import androidx.activity.ComponentActivity
 import androidx.activity.addCallback
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -51,6 +53,7 @@ class MainActivity : ComponentActivity() {
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
         // AssetLoader serve os arquivos compilados em assets/ permitindo ES Modules, Fetch e CORS
@@ -130,6 +133,7 @@ class MainActivity : ComponentActivity() {
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
+            setBackgroundColor(Color.WHITE)
             addView(
                 webView,
                 FrameLayout.LayoutParams(
@@ -148,6 +152,7 @@ class MainActivity : ComponentActivity() {
             view.setPadding(insets.left, insets.top, insets.right, insets.bottom)
             windowInsets
         }
+        ViewCompat.requestApplyInsets(rootLayout)
 
         // Gerencia navegação do botão voltar no histórico do WebView (volta da leitura para a estante)
         onBackPressedDispatcher.addCallback(this) {

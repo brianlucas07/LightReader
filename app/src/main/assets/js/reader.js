@@ -27,6 +27,7 @@ class EpubReader {
     const viewerEl = document.getElementById("viewer");
     if (!viewerEl) return;
     viewerEl.innerHTML = "";
+    void viewerEl.offsetHeight;
 
     // Instancia o livro a partir do ArrayBuffer
     this.book = ePub(bookRecord.fileBuffer);
@@ -331,6 +332,11 @@ class EpubReader {
       document.getElementById("tocDrawer")?.classList.remove("open");
       document.getElementById("settingsSheet")?.classList.remove("open");
     }
+    setTimeout(() => {
+      if (this.rendition) {
+        this.rendition.resize();
+      }
+    }, 240);
   }
 
   findChapter(items, href) {

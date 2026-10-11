@@ -15,8 +15,14 @@ class EpubReader {
   }
 
   async openBook(bookRecord) {
+    this.destroy(); // Limpa instâncias anteriores antes de configurar novo livro
     this.currentBookId = bookRecord.id;
-    this.destroy(); // Limpa instâncias anteriores se houver
+
+    const targetCfi =
+      bookRecord.currentCfi ||
+      localStorage.getItem(`last_cfi_${bookRecord.id}`) ||
+      null;
+    this.currentCfi = targetCfi;
 
     const viewerEl = document.getElementById("viewer");
     if (!viewerEl) return;
@@ -48,8 +54,8 @@ class EpubReader {
     this.book.ready
       .then(() => this.book.locations.generate(1024))
       .then(() => {
-        if (bookRecord.currentCfi && this.book.locations) {
-          const pct = Math.round(this.book.locations.percentageFromCfi(bookRecord.currentCfi) * 100);
+        if (this.currentCfi && this.book.locations) {
+          const pct = Math.round(this.book.locations.percentageFromCfi(this.currentCfi) * 100);
           this.updateProgressUi(pct);
         }
       });
@@ -57,18 +63,23 @@ class EpubReader {
     // Escuta mudanças de página e atualiza progresso
     this.rendition.on("relocated", (location) => {
       const cfi = location.start.cfi;
+      this.currentCfi = cfi;
+
       let pct = 0;
       if (this.book.locations && this.book.locations.total > 0) {
         pct = Math.round(this.book.locations.percentageFromCfi(cfi) * 100) || 0;
       }
+      this.currentProgressPercent = pct;
       this.updateProgressUi(pct);
 
-      // Persiste no IndexedDB
+      // Salva imediatamente no localStorage e atualiza no banco
       if (this.currentBookId) {
+        localStorage.setItem(`last_cfi_${this.currentBookId}`, cfi);
+        localStorage.setItem("last_active_book_id", this.currentBookId);
         window.bookDB.updateProgress(this.currentBookId, {
           currentCfi: cfi,
           progressPercent: pct
-        });
+        }).catch((err) => console.warn("Erro ao salvar progresso:", err));
       }
 
       // Atualiza título do capítulo se disponível
@@ -134,9 +145,15 @@ class EpubReader {
       });
     });
 
-    // Exibe a página (na última posição ou no início)
-    if (bookRecord.currentCfi) {
-      await this.rendition.display(bookRecord.currentCfi);
+    // Exibe a página (na última posição salva ou no início)
+    if (this.currentCfi) {
+      console.log("Restaurando leitura no ponto salvo:", this.currentCfi);
+      try {
+        await this.rendition.display(this.currentCfi);
+      } catch (err) {
+        console.warn("Falha ao abrir no CFI salvo, abrindo início:", err);
+        await this.rendition.display();
+      }
     } else {
       await this.rendition.display();
     }

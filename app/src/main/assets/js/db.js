@@ -69,8 +69,11 @@ class BookDatabase {
     return new Promise((resolve, reject) => {
       const request = store.getAll();
       request.onsuccess = () => {
-        // Ordena pelos lidos mais recentemente
-        const books = (request.result || []).sort(
+        const books = (request.result || []).map((book) => {
+          const cachedCfi = localStorage.getItem(`last_cfi_${book.id}`);
+          if (cachedCfi) book.currentCfi = cachedCfi;
+          return book;
+        }).sort(
           (a, b) => (b.lastReadAt || b.addedAt || 0) - (a.lastReadAt || a.addedAt || 0)
         );
         resolve(books);
@@ -83,18 +86,30 @@ class BookDatabase {
     const store = await this.getStore("readonly");
     return new Promise((resolve, reject) => {
       const request = store.get(id);
-      request.onsuccess = () => resolve(request.result);
+      request.onsuccess = () => {
+        const book = request.result;
+        if (book) {
+          const cachedCfi = localStorage.getItem(`last_cfi_${book.id}`);
+          if (cachedCfi) {
+            book.currentCfi = cachedCfi;
+          }
+        }
+        resolve(book);
+      };
       request.onerror = (e) => reject(e.target.error);
     });
   }
 
   async updateProgress(id, { currentCfi, progressPercent }) {
+    if (currentCfi) {
+      localStorage.setItem(`last_cfi_${id}`, currentCfi);
+    }
     const store = await this.getStore("readwrite");
     return new Promise((resolve, reject) => {
       const getReq = store.get(id);
       getReq.onsuccess = () => {
         const book = getReq.result;
-        if (!book) return reject(new Error("Livro não encontrado"));
+        if (!book) return resolve(null);
 
         if (currentCfi !== undefined) book.currentCfi = currentCfi;
         if (progressPercent !== undefined) book.progressPercent = progressPercent;

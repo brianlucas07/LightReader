@@ -71,15 +71,37 @@ class AppController {
       }
     });
 
+    // Verifica se havia um livro aberto para retomar a leitura automaticamente
+    this.resumeLastBookIfAvailable();
+
     console.log("LightReader App inicializado.");
   }
 
-  async openBookInReader(bookId) {
+  async resumeLastBookIfAvailable() {
+    const lastBookId = localStorage.getItem("last_active_book_id");
+    if (lastBookId) {
+      try {
+        const book = await window.bookDB.getBook(lastBookId);
+        if (book) {
+          console.log("Retomando automaticamente leitura:", book.title);
+          await this.openBookInReader(lastBookId, true);
+        } else {
+          localStorage.removeItem("last_active_book_id");
+        }
+      } catch (err) {
+        console.warn("Falha ao retomar último livro:", err);
+      }
+    }
+  }
+
+  async openBookInReader(bookId, pushHistory = true) {
+    localStorage.setItem("last_active_book_id", bookId);
     window.bookLibrary.showLoading("Abrindo livro...");
     try {
       const bookRecord = await window.bookDB.getBook(bookId);
       if (!bookRecord) {
         alert("Livro não encontrado.");
+        localStorage.removeItem("last_active_book_id");
         return;
       }
 
@@ -88,7 +110,9 @@ class AppController {
       this.readerView.classList.remove("hidden");
 
       // Adiciona estado no histórico do navegador para o botão voltar do Android interceptar
-      window.history.pushState({ view: "reader", bookId: bookId }, "");
+      if (pushHistory) {
+        window.history.pushState({ view: "reader", bookId: bookId }, "");
+      }
 
       await window.epubReader.openBook(bookRecord);
     } catch (e) {
@@ -101,6 +125,7 @@ class AppController {
   }
 
   closeReaderAndGoToLibrary(shouldGoBackHistory = true) {
+    localStorage.removeItem("last_active_book_id");
     window.epubReader.destroy();
 
     this.activeView = "library";

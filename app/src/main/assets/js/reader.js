@@ -10,13 +10,22 @@ class EpubReader {
     this.currentTheme = localStorage.getItem("reader_theme") || "light";
     this.fontSizePercent = parseInt(localStorage.getItem("reader_font_size") || "100", 10);
     this.tocItems = [];
-    this.isControlsVisible = true;
+    this.isControlsVisible = false;
     this.isAnimating = false;
   }
 
   async openBook(bookRecord) {
     this.destroy(); // Limpa instâncias anteriores antes de configurar novo livro
     this.currentBookId = bookRecord.id;
+    this.isControlsVisible = false;
+
+    // Garante barras ocultas e gavetas fechadas na abertura do livro
+    const header = document.getElementById("readerHeader");
+    const footer = document.getElementById("readerFooter");
+    header?.classList.add("hidden");
+    footer?.classList.add("hidden");
+    document.getElementById("tocDrawer")?.classList.remove("open");
+    document.getElementById("settingsSheet")?.classList.remove("open");
 
     const targetCfi =
       bookRecord.currentCfi ||
@@ -122,8 +131,10 @@ class EpubReader {
         const deltaX = endX - startX;
         const deltaY = endY - startY;
         const deltaTime = Date.now() - startTime;
+        const frameWidth = view.iframe ? view.iframe.offsetWidth : window.innerWidth;
+        const frameHeight = view.iframe ? view.iframe.offsetHeight : window.innerHeight;
 
-        this.handleGestureEnd(deltaX, deltaY, deltaTime);
+        this.handleGestureEnd(deltaX, deltaY, deltaTime, endX, endY, frameWidth, frameHeight);
       });
 
       // Suporte a Mouse Drag (Desktop / Emuladores)
@@ -141,8 +152,10 @@ class EpubReader {
         const deltaX = e.clientX - startX;
         const deltaY = e.clientY - startY;
         const deltaTime = Date.now() - startTime;
+        const frameWidth = view.iframe ? view.iframe.offsetWidth : window.innerWidth;
+        const frameHeight = view.iframe ? view.iframe.offsetHeight : window.innerHeight;
 
-        this.handleGestureEnd(deltaX, deltaY, deltaTime);
+        this.handleGestureEnd(deltaX, deltaY, deltaTime, e.clientX, e.clientY, frameWidth, frameHeight);
       });
     });
 
@@ -167,7 +180,7 @@ class EpubReader {
   registerThemes() {
     const commonStyles = {
       "line-height": "1.75 !important",
-      padding: "20px 20px 24px 20px !important",
+      padding: "36px 20px 40px 20px !important",
       "box-sizing": "border-box !important"
     };
 
@@ -226,11 +239,11 @@ class EpubReader {
     this.applyFontSize(this.fontSizePercent - 10);
   }
 
-  handleGestureEnd(deltaX, deltaY, deltaTime) {
+  handleGestureEnd(deltaX, deltaY, deltaTime, tapX, tapY, screenWidth, screenHeight) {
     const absX = Math.abs(deltaX);
     const absY = Math.abs(deltaY);
 
-    // Gesto de Swipe horizontal (arrastar na tela)
+    // Gesto de Swipe horizontal (arrastar na tela para passar de página)
     // - Mínimo de 35px de deslocamento horizontal
     // - Predominantemente horizontal (absX > absY * 1.2)
     // - Tempo menor que 700ms
@@ -243,9 +256,13 @@ class EpubReader {
         this.prevPage();
       }
     }
-    // Toque simples (tap) na tela: alterna visibilidade dos menus
-    else if (absX < 12 && absY < 12 && deltaTime < 350) {
-      this.toggleControls();
+    // Toque simples (tap) no meio da tela: exibe ou oculta as barras de navegação
+    else if (absX < 15 && absY < 15 && deltaTime < 400) {
+      // Verifica se o toque foi na região central (entre 18% e 82% da largura)
+      const isCenter = (!screenWidth || (tapX >= screenWidth * 0.18 && tapX <= screenWidth * 0.82));
+      if (isCenter) {
+        this.toggleControls();
+      }
     }
   }
 
@@ -332,11 +349,6 @@ class EpubReader {
       document.getElementById("tocDrawer")?.classList.remove("open");
       document.getElementById("settingsSheet")?.classList.remove("open");
     }
-    setTimeout(() => {
-      if (this.rendition) {
-        this.rendition.resize();
-      }
-    }, 240);
   }
 
   findChapter(items, href) {

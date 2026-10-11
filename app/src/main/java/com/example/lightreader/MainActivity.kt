@@ -54,6 +54,10 @@ class MainActivity : ComponentActivity() {
             .build()
 
         webView = WebView(this).apply {
+            isVerticalScrollBarEnabled = false
+            isHorizontalScrollBarEnabled = false
+            overScrollMode = WebView.OVER_SCROLL_NEVER
+
             settings.apply {
                 javaScriptEnabled = true
                 domStorageEnabled = true

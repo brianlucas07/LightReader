@@ -5,39 +5,117 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>LightReader</title>
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/reader.css">
+  <!-- Bibliotecas Locais Offline -->
+  <script src="libs/jszip.min.js"></script>
+  <script src="libs/epub.min.js"></script>
 </head>
 <body>
-  <div class="app-container">
-    <header class="header">
+
+  <!-- ================= TELA 1: ESTANTE / BIBLIOTECA ================= -->
+  <div id="libraryView" class="view-container">
+    <header class="library-header">
       <div class="brand">
-        <span class="icon">📖</span>
+        <span class="brand-icon">📖</span>
         <h1>LightReader</h1>
       </div>
-      <button id="themeToggle" class="btn-icon" aria-label="Alternar tema">🌓</button>
+      <div class="header-actions">
+        <label for="epubFileInput" class="btn-icon add-btn" title="Adicionar livro .epub" aria-label="Adicionar livro">
+          <span>+</span>
+          <input type="file" id="epubFileInput" accept=".epub" hidden>
+        </label>
+        <button id="themeToggle" class="btn-icon" title="Alternar tema" aria-label="Alternar tema">🌓</button>
+      </div>
     </header>
 
-    <main class="content">
-      <section class="card">
-        <h2>Web Launcher Ativo</h2>
-        <p>Os arquivos web compilados em <code>app/src/main/assets/</code> estão sendo carregados diretamente pelo WebView nativo.</p>
-        <div class="status-badge">
-          <span class="status-dot"></span>
-          <span>Pronto para receber sua aplicação compilada</span>
-        </div>
-      </section>
-
-      <section class="card actions-card">
-        <h3>Abrir Livro EPUB</h3>
-        <p>Você pode carregar arquivos compilados de qualquer framework (React, Vue, Svelte, Vanilla) ou conectar bibliotecas JS de leitura como <em>epub.js</em> ou <em>foliate-js</em>.</p>
-        <label for="epubInput" class="btn-primary">
-          <span>Selecionar arquivo .epub</span>
-          <input type="file" id="epubInput" accept=".epub" hidden>
+    <main class="library-content">
+      <!-- Estado Vazio -->
+      <div id="emptyLibraryState" class="empty-state hidden">
+        <div class="empty-icon">📚</div>
+        <h2>Sua estante está vazia</h2>
+        <p>Toque no botão abaixo para adicionar seu primeiro livro digital no formato .epub</p>
+        <label for="epubFileInput" class="btn-primary">
+          <span>Adicionar Livro EPUB</span>
         </label>
-        <p id="fileInfo" class="file-info"></p>
-      </section>
+      </div>
+
+      <!-- Grade de Livros -->
+      <section id="booksGrid" class="books-grid"></section>
     </main>
   </div>
 
+  <!-- ================= TELA 2: LEITOR EPUB ================= -->
+  <div id="readerView" class="view-container hidden">
+    <!-- Barra Superior Retrátil -->
+    <header id="readerHeader" class="reader-header">
+      <button id="btnBackToLibrary" class="reader-btn" title="Voltar à estante">←</button>
+      <div class="reader-titles">
+        <h2 id="readerBookTitle" class="reader-title">Título do Livro</h2>
+        <span id="readerChapterTitle" class="reader-chapter">Capítulo</span>
+      </div>
+      <div class="reader-actions">
+        <button id="btnOpenToc" class="reader-btn" title="Sumário">📑</button>
+        <button id="btnOpenSettings" class="reader-btn" title="Configurações">⚙️</button>
+      </div>
+    </header>
+
+    <!-- Área de Renderização do ePub.js -->
+    <main id="viewer" class="epub-viewer"></main>
+
+    <!-- Barra Inferior Retrátil -->
+    <footer id="readerFooter" class="reader-footer">
+      <div class="progress-container">
+        <input type="range" id="readerProgressSlider" min="0" max="100" value="0" disabled>
+        <span id="readerProgressLabel">0%</span>
+      </div>
+    </footer>
+
+    <!-- Gaveta de Sumário (TOC) -->
+    <div id="tocDrawer" class="toc-drawer">
+      <div class="drawer-header">
+        <h3>Sumário</h3>
+        <button id="btnCloseToc" class="reader-btn">✕</button>
+      </div>
+      <div id="tocList" class="toc-list"></div>
+    </div>
+
+    <!-- Folha de Configurações de Leitura -->
+    <div id="settingsSheet" class="settings-sheet">
+      <div class="sheet-header">
+        <h3>Preferências de Leitura</h3>
+        <button id="btnCloseSettings" class="reader-btn">✕</button>
+      </div>
+
+      <div class="setting-group">
+        <label>Tema</label>
+        <div class="theme-picker">
+          <button class="theme-btn theme-light" data-theme="light">Claro</button>
+          <button class="theme-btn theme-sepia" data-theme="sepia">Sépia</button>
+          <button class="theme-btn theme-dark" data-theme="dark">Escuro</button>
+        </div>
+      </div>
+
+      <div class="setting-group">
+        <label>Tamanho da Fonte</label>
+        <div class="font-controls">
+          <button id="btnFontDecrease" class="btn-ctrl">A -</button>
+          <span id="fontSizeDisplay">100%</span>
+          <button id="btnFontIncrease" class="btn-ctrl">A +</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Overlay de Carregamento Global -->
+  <div id="loadingOverlay" class="loading-overlay hidden">
+    <div class="spinner"></div>
+    <span id="loadingText">Carregando...</span>
+  </div>
+
+  <!-- Scripts da Aplicação -->
+  <script src="js/db.js"></script>
+  <script src="js/reader.js"></script>
+  <script src="js/library.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

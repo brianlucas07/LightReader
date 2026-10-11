@@ -1,0 +1,121 @@
+/**
+ * db.js - Camada de persistência local via IndexedDB para o LightReader
+ */
+
+const DB_NAME = "LightReaderDB";
+const DB_VERSION = 1;
+const STORE_NAME = "books";
+
+class BookDatabase {
+  constructor() {
+    this.dbPromise = this.init();
+  }
+
+  init() {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+      request.onupgradeneeded = (event) => {
+        const db = event.target.result;
+        if (!db.objectStoreNames.contains(STORE_NAME)) {
+          const store = db.createObjectStore(STORE_NAME, { keyPath: "id" });
+          store.createIndex("lastReadAt", "lastReadAt", { unique: false });
+          store.createIndex("addedAt", "addedAt", { unique: false });
+          store.createIndex("title", "title", { unique: false });
+        }
+      };
+
+      request.onsuccess = (event) => {
+        resolve(event.target.result);
+      };
+
+      request.onerror = (event) => {
+        console.error("Erro ao abrir IndexedDB:", event.target.error);
+        reject(event.target.error);
+      };
+    });
+  }
+
+  async getStore(mode = "readonly") {
+    const db = await this.dbPromise;
+    const tx = db.transaction(STORE_NAME, mode);
+    return tx.objectStore(STORE_NAME);
+  }
+
+  async saveBook(book) {
+    const store = await this.getStore("readwrite");
+    return new Promise((resolve, reject) => {
+      const record = {
+        id: book.id || crypto.randomUUID(),
+        title: book.title || "Sem Título",
+        author: book.author || "Autor Desconhecido",
+        coverDataUrl: book.coverDataUrl || null,
+        fileBuffer: book.fileBuffer, // ArrayBuffer do .epub
+        currentCfi: book.currentCfi || null,
+        progressPercent: book.progressPercent || 0,
+        fileSize: book.fileSize || (book.fileBuffer ? book.fileBuffer.byteLength : 0),
+        addedAt: book.addedAt || Date.now(),
+        lastReadAt: book.lastReadAt || Date.now(),
+      };
+
+      const request = store.put(record);
+      request.onsuccess = () => resolve(record);
+      request.onerror = (e) => reject(e.target.error);
+    });
+  }
+
+  async getAllBooks() {
+    const store = await this.getStore("readonly");
+    return new Promise((resolve, reject) => {
+      const request = store.getAll();
+      request.onsuccess = () => {
+        // Ordena pelos lidos mais recentemente
+        const books = (request.result || []).sort(
+          (a, b) => (b.lastReadAt || b.addedAt || 0) - (a.lastReadAt || a.addedAt || 0)
+        );
+        resolve(books);
+      };
+      request.onerror = (e) => reject(e.target.error);
+    });
+  }
+
+  async getBook(id) {
+    const store = await this.getStore("readonly");
+    return new Promise((resolve, reject) => {
+      const request = store.get(id);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = (e) => reject(e.target.error);
+    });
+  }
+
+  async updateProgress(id, { currentCfi, progressPercent }) {
+    const store = await this.getStore("readwrite");
+    return new Promise((resolve, reject) => {
+      const getReq = store.get(id);
+      getReq.onsuccess = () => {
+        const book = getReq.result;
+        if (!book) return reject(new Error("Livro não encontrado"));
+
+        if (currentCfi !== undefined) book.currentCfi = currentCfi;
+        if (progressPercent !== undefined) book.progressPercent = progressPercent;
+        book.lastReadAt = Date.now();
+
+        const putReq = store.put(book);
+        putReq.onsuccess = () => resolve(book);
+        putReq.onerror = (e) => reject(e.target.error);
+      };
+      getReq.onerror = (e) => reject(e.target.error);
+    });
+  }
+
+  async deleteBook(id) {
+    const store = await this.getStore("readwrite");
+    return new Promise((resolve, reject) => {
+      const request = store.delete(id);
+      request.onsuccess = () => resolve(true);
+      request.onerror = (e) => reject(e.target.error);
+    });
+  }
+}
+
+window.bookDB = new BookDatabase();

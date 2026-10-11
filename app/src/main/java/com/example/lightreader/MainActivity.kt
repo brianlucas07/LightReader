@@ -16,6 +16,8 @@ import android.webkit.WebView
 import androidx.activity.ComponentActivity
 import androidx.activity.addCallback
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.webkit.WebViewAssetLoader
 import androidx.webkit.WebViewClientCompat
 
@@ -120,6 +122,16 @@ class MainActivity : ComponentActivity() {
         }
 
         setContentView(webView)
+
+        // Aplica o padding dos insets do sistema (status bar, notch e navigation bar)
+        // para garantir que o conteúdo nunca fique oculto ou cortado pelas bordas da tela
+        ViewCompat.setOnApplyWindowInsetsListener(webView) { view, windowInsets ->
+            val insets = windowInsets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
+            )
+            view.setPadding(insets.left, insets.top, insets.right, insets.bottom)
+            windowInsets
+        }
 
         // Gerencia navegação do botão voltar no histórico do WebView (volta da leitura para a estante)
         onBackPressedDispatcher.addCallback(this) {

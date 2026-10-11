@@ -147,13 +147,18 @@ class EpubReader {
   }
 
   registerThemes() {
+    const commonStyles = {
+      "line-height": "1.75 !important",
+      padding: "44px 20px 52px 20px !important",
+      "box-sizing": "border-box !important"
+    };
+
     this.rendition.themes.register("light", {
       body: {
         background: "#ffffff !important",
         color: "#1a1a1a !important",
         "font-family": "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important",
-        "line-height": "1.7 !important",
-        padding: "0 16px !important"
+        ...commonStyles
       }
     });
 
@@ -162,8 +167,7 @@ class EpubReader {
         background: "#121316 !important",
         color: "#e5e7eb !important",
         "font-family": "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important",
-        "line-height": "1.7 !important",
-        padding: "0 16px !important"
+        ...commonStyles
       }
     });
 
@@ -172,8 +176,7 @@ class EpubReader {
         background: "#fbf0d9 !important",
         color: "#5f4b32 !important",
         "font-family": "Georgia, serif !important",
-        "line-height": "1.7 !important",
-        padding: "0 16px !important"
+        ...commonStyles
       }
     });
   }

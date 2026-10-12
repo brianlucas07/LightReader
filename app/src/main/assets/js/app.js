@@ -104,27 +104,7 @@ class AppController {
       }
     });
 
-    // Verifica se havia um livro aberto para retomar a leitura automaticamente
-    this.resumeLastBookIfAvailable();
-
     console.log("LightReader App inicializado.");
-  }
-
-  async resumeLastBookIfAvailable() {
-    const lastBookId = localStorage.getItem("last_active_book_id");
-    if (lastBookId) {
-      try {
-        const book = await window.bookDB.getBook(lastBookId);
-        if (book) {
-          console.log("Retomando automaticamente leitura:", book.title);
-          await this.openBookInReader(lastBookId, true);
-        } else {
-          localStorage.removeItem("last_active_book_id");
-        }
-      } catch (err) {
-        console.warn("Falha ao retomar último livro:", err);
-      }
-    }
   }
 
   async openBookInReader(bookId, pushHistory = true) {

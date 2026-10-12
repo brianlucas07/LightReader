@@ -306,6 +306,27 @@ class EpubReader {
     let startTime = 0;
     let isTracking = false;
 
+    const getPoint = (e, touchObj) => {
+      const point = touchObj || (e.touches && e.touches[0]) || (e.changedTouches && e.changedTouches[0]) || e;
+      let clientX = point.clientX ?? 0;
+      let clientY = point.clientY ?? 0;
+
+      // Se o evento foi disparado dentro de um iframe do ePub.js, as coordenadas
+      // clientX/clientY seguem a viewport interna do iframe (que pode ter milhares
+      // de pixels de largura devido ao layout em colunas paginadas).
+      // Convertemos para a viewport da tela principal adicionando a posição do iframe.
+      const targetDoc = e.target?.ownerDocument || document;
+      if (targetDoc !== document) {
+        const frameEl = targetDoc.defaultView?.frameElement || document.querySelector("#viewer iframe");
+        if (frameEl) {
+          const rect = frameEl.getBoundingClientRect();
+          clientX += rect.left;
+          clientY += rect.top;
+        }
+      }
+      return { x: clientX, y: clientY };
+    };
+
     const onStart = (clientX, clientY) => {
       startX = clientX;
       startY = clientY;
@@ -335,24 +356,28 @@ class EpubReader {
 
     const handleTouchStart = (e) => {
       if (e.touches && e.touches.length === 1) {
-        onStart(e.touches[0].clientX, e.touches[0].clientY);
+        const pt = getPoint(e, e.touches[0]);
+        onStart(pt.x, pt.y);
       }
     };
 
     const handleTouchEnd = (e) => {
       if (e.changedTouches && e.changedTouches.length > 0) {
-        onEnd(e.changedTouches[0].clientX, e.changedTouches[0].clientY, true);
+        const pt = getPoint(e, e.changedTouches[0]);
+        onEnd(pt.x, pt.y, true);
       }
     };
 
     const handleMouseDown = (e) => {
       if (Date.now() - this.lastTouchEndTime < 650) return;
-      onStart(e.clientX, e.clientY);
+      const pt = getPoint(e);
+      onStart(pt.x, pt.y);
     };
 
     const handleMouseUp = (e) => {
       if (Date.now() - this.lastTouchEndTime < 650) return;
-      onEnd(e.clientX, e.clientY, false);
+      const pt = getPoint(e);
+      onEnd(pt.x, pt.y, false);
     };
 
     // 1. Escuta eventos direto no rendition do ePub.js

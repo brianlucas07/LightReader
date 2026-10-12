@@ -81,31 +81,24 @@ class EpubReader {
       if (!doc) return;
       const style = doc.createElement("style");
       style.textContent = `
-        html {
-          height: 100% !important;
-          overflow: hidden !important;
+        html, body {
           margin: 0 !important;
           padding: 0 !important;
           box-sizing: border-box !important;
         }
         body {
-          margin: 0 !important;
-          box-sizing: border-box !important;
+          padding: 24px 18px 28px 18px !important;
         }
-        *, body, div, section, article, p, blockquote {
-          break-inside: auto !important;
-          page-break-inside: auto !important;
-          -webkit-column-break-inside: auto !important;
+        *, div, section, article, p, blockquote {
           box-sizing: border-box !important;
         }
         img, image, svg, video, audio {
           max-width: 100% !important;
-          max-height: 85% !important;
+          max-height: 75vh !important;
           height: auto !important;
           object-fit: contain !important;
           break-inside: avoid !important;
           page-break-inside: avoid !important;
-          -webkit-column-break-inside: auto !important;
         }
         table, pre {
           max-width: 100% !important;
@@ -196,7 +189,7 @@ class EpubReader {
   registerThemes() {
     const commonStyles = {
       "line-height": "1.65 !important",
-      padding: "10px 16px 16px 16px !important",
+      padding: "24px 18px 28px 18px !important",
       margin: "0 !important",
       "box-sizing": "border-box !important"
     };
@@ -209,8 +202,8 @@ class EpubReader {
       "p": {
         "margin-top": "0 !important",
         "margin-bottom": "0.75em !important",
-        "orphans": "1 !important",
-        "widows": "1 !important"
+        "orphans": "2 !important",
+        "widows": "2 !important"
       },
       "h1, h2, h3, h4, h5, h6": {
         "margin-top": "0.4em !important",
@@ -218,20 +211,16 @@ class EpubReader {
         "break-inside": "avoid !important",
         "page-break-inside": "avoid !important"
       },
-      "*, body, div, section, article, p, blockquote": {
-        "break-inside": "auto !important",
-        "page-break-inside": "auto !important",
-        "-webkit-column-break-inside": "auto !important",
+      "*, div, section, article, p, blockquote": {
         "box-sizing": "border-box !important"
       },
       "img, image, svg, video, audio": {
         "max-width": "100% !important",
-        "max-height": "85% !important",
+        "max-height": "75vh !important",
         "height": "auto !important",
         "object-fit": "contain !important",
         "break-inside": "avoid !important",
-        "page-break-inside": "avoid !important",
-        "-webkit-column-break-inside": "avoid !important"
+        "page-break-inside": "avoid !important"
       },
       "table, pre": {
         "max-width": "100% !important",

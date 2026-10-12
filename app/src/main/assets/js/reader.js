@@ -92,6 +92,15 @@ class EpubReader {
         *, div, section, article, p, blockquote {
           box-sizing: border-box !important;
         }
+        /* Containers com overflow:hidden/altura fixa (ex.: div.page1 do Calibre) não podem ser
+           fragmentados em colunas: o capítulo inteiro vira uma "página" gigante cortada na tela. */
+        body > *, div, section, article, main, aside, blockquote {
+          overflow: visible !important;
+          max-height: none !important;
+        }
+        body > * {
+          height: auto !important;
+        }
         img, image, svg, video, audio {
           max-width: 100% !important;
           max-height: 75vh !important;
